@@ -11,6 +11,17 @@
             "program": "app.py",
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/app/backend"
+        },
+        {
+            "name": "Venv Python Debugger: App (with venv)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/app/backend/app.py",
+            "console": "integratedTerminal",
+            "env":{
+                "PYTHONPATH": "${workspaceFolder}/.venv/Scripts}"
+            },
+            "envFile": "${workspaceFolder}/app/backend/.env",
         }
     ]
 }

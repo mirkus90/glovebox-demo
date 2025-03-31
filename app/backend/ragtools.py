@@ -49,6 +49,34 @@ _grounding_tool_schema = {
     }
 }
 
+_multiply_tool_schema = {
+    "type": "function",
+    "name": "multiply",
+    "description": "Multiply two numbers and provide the result",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "A": {
+                "type": "number",
+                "description": "The first number to multiply"
+            },
+            "B": {
+                "type": "number",
+                "description": "The second number to multiply"
+            }
+        },
+        "required": ["A", "B"],
+        "additionalProperties": False
+    }
+}
+
+_machine_status_schema = {
+    "type": "function",
+    "name": "machine_status",
+    "description": "Check the status of the Glovebox machine. Returns a value among 'running', 'stopped', 'error'",
+    "parameters": {}
+}
+
 async def _search_tool(
     search_client: SearchClient, 
     semantic_configuration: str | None,
@@ -100,6 +128,13 @@ async def _report_grounding_tool(search_client: SearchClient, identifier_field: 
         docs.append({"chunk_id": r[identifier_field], "title": r[title_field], "chunk": r[content_field]})
     return ToolResult({"sources": docs}, ToolResultDirection.TO_CLIENT)
 
+async def _multiply_tool(args: Any) -> ToolResult:
+    print(f"Multiplying {args['A']} and {args['B']}")
+    return ToolResult(args["A"] * args["B"], ToolResultDirection.TO_SERVER)
+
+async def _machine_status(args: Any) -> ToolResult:
+    return ToolResult("running", ToolResultDirection.TO_SERVER)
+
 def attach_rag_tools(rtmt: RTMiddleTier,
     credentials: AzureKeyCredential | DefaultAzureCredential,
     search_endpoint: str, search_index: str,
@@ -116,3 +151,5 @@ def attach_rag_tools(rtmt: RTMiddleTier,
 
     rtmt.tools["search"] = Tool(schema=_search_tool_schema, target=lambda args: _search_tool(search_client, semantic_configuration, identifier_field, content_field, embedding_field, use_vector_query, args))
     rtmt.tools["report_grounding"] = Tool(schema=_grounding_tool_schema, target=lambda args: _report_grounding_tool(search_client, identifier_field, title_field, content_field, args))
+    rtmt.tools["multiply"] = Tool(schema=_multiply_tool_schema, target=lambda args: _multiply_tool(args))
+    rtmt.tools["machine_status"] = Tool(schema=_machine_status_schema, target=lambda args: _machine_status(args))

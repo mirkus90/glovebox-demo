@@ -137,6 +137,7 @@ class RTMiddleTier:
                                 "tool_result": result.to_text()
                             })
                         updated_message = None
+                        print(f"Message: {updated_message}")
 
                 case "response.done":
                     if len(self._tools_pending) > 0:

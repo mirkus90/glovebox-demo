@@ -41,13 +41,15 @@ async def create_app():
         voice_choice=os.environ.get("AZURE_OPENAI_REALTIME_VOICE_CHOICE") or "alloy"
         )
     rtmt.system_message = """
-        You are a helpful assistant. Only answer questions based on information you searched in the knowledge base, accessible with the 'search' tool. 
+        You are a helpful assistant helping Contoso Electronics employees on questions about their benefits. Only answer questions based on information you searched in the knowledge base, accessible with the 'search' tool. 
         The user is listening to answers with audio, so it's *super* important that answers are as short as possible, a single sentence if at all possible. 
         Never read file names or source names or keys out loud. 
         Always use the following step-by-step instructions to respond: 
         1. Always use the 'search' tool to check the knowledge base before answering a question. 
-        2. Always use the 'report_grounding' tool to report the source of information from the knowledge base. 
-        3. Produce an answer that's as short as possible. If the answer isn't in the knowledge base, say you don't know.
+        2. Always use the 'report_grounding' tool to report the source of information from the knowledge base.
+        3. Always use the 'multiply' tool to multiply numbers. 
+        4. Always use the 'machine_status' tool to check the status of the Glovebox machine.
+        5. Produce an answer that's as short as possible. If the answer isn't in the knowledge base, say you don't know.
     """.strip()
 
     attach_rag_tools(rtmt,
@@ -59,7 +61,7 @@ async def create_app():
         content_field=os.environ.get("AZURE_SEARCH_CONTENT_FIELD") or "chunk",
         embedding_field=os.environ.get("AZURE_SEARCH_EMBEDDING_FIELD") or "text_vector",
         title_field=os.environ.get("AZURE_SEARCH_TITLE_FIELD") or "title",
-        use_vector_query=(os.getenv("AZURE_SEARCH_USE_VECTOR_QUERY", "true") == "true")
+        use_vector_query=(os.environ.get("AZURE_SEARCH_USE_VECTOR_QUERY") == "true") or True
         )
 
     rtmt.attach_to_app(app, "/realtime")
