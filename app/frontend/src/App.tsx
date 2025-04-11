@@ -39,6 +39,7 @@ function App() {
             });
 
             setGroundingFiles(prev => [...prev, ...files]);
+            setSelectedFile(files[0]);
         }
     });
 
@@ -69,13 +70,13 @@ function App() {
                 <img src={logo} alt="Azure logo" className="h-16 w-16" />
             </div> */}
             <main className="flex flex-grow flex-col items-center justify-center">
-                <h1 className="mb-8 bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-4xl font-bold text-transparent md:text-7xl">
+                <h1 className="mb-8 bg-gradient-to-r from-blue-600 to-blue-600 bg-clip-text text-4xl font-bold text-transparent md:text-7xl">
                     {t("app.title")}
                 </h1>
                 <div className="mb-4 flex flex-col items-center justify-center">
                     <Button
                         onClick={onToggleListening}
-                        className={`h-12 w-60 ${isRecording ? "bg-red-600 hover:bg-red-700" : "bg-purple-500 hover:bg-purple-600"}`}
+                        className={`h-12 w-60 ${isRecording ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-600"}`}
                         aria-label={isRecording ? t("app.stopRecording") : t("app.startRecording")}
                     >
                         {isRecording ? (
@@ -98,6 +99,11 @@ function App() {
                 <p>{t("app.footer")}</p>
             </footer>
 
+            {/* <div className="flex-grow overflow-hidden">
+                <pre className="h-[40vh] overflow-auto text-wrap rounded-md bg-gray-100 p-4 text-sm">
+                    <code>{selectedFile?.content}</code>
+                </pre>
+            </div> */}
             <GroundingFileView groundingFile={selectedFile} onClosed={() => setSelectedFile(null)} />
         </div>
     );

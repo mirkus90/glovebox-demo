@@ -11,7 +11,7 @@ from rtmt import RTMiddleTier, Tool, ToolResult, ToolResultDirection
 _search_tool_schema = {
     "type": "function",
     "name": "search",
-    "description": "Search the knowledge base. The knowledge base contains numeric values about scientific experiments.",
+    "description": "Extract experiment procedures about the experiment. The knowledge base contains steps about scientific experiments. Only provide each step one by one, starting from the first one. Only when the user asks you to go to the next step, you proceed to the next step.",
     "parameters": {
         "type": "object",
         "properties": {

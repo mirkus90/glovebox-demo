@@ -1,7 +1,7 @@
 {
     "app": {
         "title": "Glovebox Assistant",
-        "footer": "Powered by Microsoft",
+        "footer": "WARNING - Only intended for demo purposes",
         "stopRecording": "Stop recording",
         "startRecording": "Start recording",
         "stopConversation": "Stop conversation"
@@ -15,7 +15,7 @@
         "noHistory": "No history yet."
     },
     "groundingFiles": {
-        "title": "Grounding files",
-        "description": "Files used to ground the answers."
+        "title": "Experiment",
+        "description": "Selected experiment"
     }
 }

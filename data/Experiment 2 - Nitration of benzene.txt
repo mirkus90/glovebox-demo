@@ -1,0 +1,21 @@
+1.	Preparation:
+•	Set up the round bottom flask on the stir plate.
+•	Attach the reflux condenser to the flask.
+2.	Experiment Steps:
+•	Step 1: Add benzene to the round bottom flask.
+•	Step 2: Add a mixture of nitric acid and sulfuric acid to the flask.
+•	Step 3: Turn on the stir plate to start the reaction.
+•	Step 4: Allow the reaction to proceed for a specified time (e.g., 1 minute for methylbenzene, 3 minutes for benzaldehyde).
+•	Step 5: Observe the formation of nitrobenzene and other products.
+3.	Observation:
+•	Note down any observations during the experiment, such as the rate of bubble formation and color changes.
+4.	Data Collection:
+•	Record the time taken for the reaction to complete and the amount of nitrobenzene formed.
+5.	Analysis:
+•	Analyze the products using techniques such as gas chromatography (GC) to determine the composition and yield of nitrobenzene.
+6.	Conclusion:
+•	Summarize the findings of the experiment.
+•	Example: The experiment shows that nitration of benzene produces nitrobenzene through electrophilic aromatic substitution.
+Cleanup:
+•	Dispose of chemicals as per the lab's safety guidelines.
+•	Clean and store equipment properly.

@@ -1,0 +1,22 @@
+1.	Preparation:
+•	Set up the water baths at different temperatures (e.g., 0°C, 20°C, 40°C, 60°C, 80°C).
+•	Prepare potato extract by blending potatoes and filtering the mixture to obtain the liquid extract.
+2.	Experiment Steps:
+•	Step 1: Measure 10ml of hydrogen peroxide solution and pour it into a test tube.
+•	Step 2: Add 5ml of potato extract to the test tube.
+•	Step 3: Place the test tube in the water bath set at 0°C and start the stopwatch.
+•	Step 4: Record the time taken for the reaction to complete (i.e., when bubbles stop forming).
+•	Step 5: Repeat steps 1-4 for each temperature setting (20°C, 40°C, 60°C, 80°C).
+3.	Observation:
+•	Note down any observations during the experiment, such as the rate of bubble formation.
+4.	Data Collection:
+•	Record the time taken for the reaction to complete at each temperature setting.
+5.	Analysis:
+•	Plot the reaction time against temperature on a graph to observe trends.
+•	Determine the optimal temperature for catalase activity.
+6.	Conclusion:
+•	Summarize the findings of the experiment.
+•	Example: The experiment shows that catalase activity increases with temperature up to an optimal point (40°C), after which it decreases due to enzyme denaturation.
+Cleanup:
+•	Dispose of chemicals as per the lab's safety guidelines.
+•	Clean and store equipment properly.
