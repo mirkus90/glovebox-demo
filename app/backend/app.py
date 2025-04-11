@@ -8,6 +8,8 @@ from azure.identity import AzureDeveloperCliCredential, DefaultAzureCredential
 from dotenv import load_dotenv
 
 from ragtools import attach_rag_tools
+from machine_tools import attach_machine_tools
+from calculator_tools import attach_calculator_tools
 from rtmt import RTMiddleTier
 
 logging.basicConfig(level=logging.INFO)
@@ -41,17 +43,19 @@ async def create_app():
         voice_choice=os.environ.get("AZURE_OPENAI_REALTIME_VOICE_CHOICE") or "alloy"
         )
     rtmt.system_message = """
-        You are a helpful assistant helping Contoso Electronics employees on questions about their benefits. Only answer questions based on information you searched in the knowledge base, accessible with the 'search' tool. 
+        You are a helpful assistant helping scientists when they are working in a lab using a glovebox machine. When asking to retrieve data, only answer questions based on information you searched in the knowledge base, accessible with the 'search' tool. 
+        You are allowed to answer generic questions *only* if they are related to chemistry.
         The user is listening to answers with audio, so it's *super* important that answers are as short as possible, a single sentence if at all possible. 
         Never read file names or source names or keys out loud. 
         Always use the following step-by-step instructions to respond: 
-        1. Always use the 'search' tool to check the knowledge base before answering a question. 
+        1. Always use the 'search' tool when the user asks for experiments data, for example about the plates. 
         2. Always use the 'report_grounding' tool to report the source of information from the knowledge base.
         3. Always use the 'multiply' tool to multiply numbers. 
-        4. Always use the 'machine_status' tool to check the status of the Glovebox machine.
+        4. Always use the 'machine_status' tool to answer questions about the Glovebox machine, like its status or temperature, or to set parameters of the machine.
         5. Produce an answer that's as short as possible. If the answer isn't in the knowledge base, say you don't know.
     """.strip()
 
+    # attach RAG agent
     attach_rag_tools(rtmt,
         credentials=search_credential,
         search_endpoint=os.environ.get("AZURE_SEARCH_ENDPOINT"),
@@ -63,6 +67,12 @@ async def create_app():
         title_field=os.environ.get("AZURE_SEARCH_TITLE_FIELD") or "title",
         use_vector_query=(os.environ.get("AZURE_SEARCH_USE_VECTOR_QUERY") == "true") or True
         )
+
+    # attach Machine agent
+    attach_machine_tools(rtmt)
+
+    # attach Calculator agent
+    attach_calculator_tools(rtmt)
 
     rtmt.attach_to_app(app, "/realtime")
 
