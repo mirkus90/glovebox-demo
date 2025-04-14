@@ -264,7 +264,10 @@ module openAi 'br/public:avm/res/cognitive-services/account:0.8.0' = if (!reuseE
     deployments: openAiDeployments
     disableLocalAuth: true
     publicNetworkAccess: 'Enabled'
-    networkAcls: {}
+    networkAcls: {
+      defaultAction: 'Allow'
+      bypass: 'AzureServices'
+    }
     roleAssignments: [
       {
         roleDefinitionIdOrName: 'Cognitive Services OpenAI User'

@@ -13,7 +13,7 @@ _machine_status_schema = {
 
 _machine_set_temperature_schema = {
     "type": "function",
-    "name": "set_temperature",
+    "name": "machine_set_temperature",
     "description": "Set the temperature of the Glovebox machine using the input value.",
     "parameters": {
         "type": "object",
@@ -30,7 +30,7 @@ _machine_set_temperature_schema = {
 
 _machine_get_temperature_schema = {
     "type": "function",
-    "name": "get_temperature",
+    "name": "machine_get_temperature",
     "description": "Get the current temperature of the Glovebox machine",
     "parameters": {}
 }
@@ -51,5 +51,5 @@ async def _machine_get_temperature(args: Any) -> ToolResult:
 
 def attach_machine_tools(rtmt: RTMiddleTier) -> None:
     rtmt.tools["machine_status"] = Tool(schema=_machine_status_schema, target=lambda args: _machine_status(args))
-    rtmt.tools["set_temperature"] = Tool(schema=_machine_set_temperature_schema, target=lambda args: _machine_set_temperature(args))
-    rtmt.tools["get_temperature"] = Tool(schema=_machine_get_temperature_schema, target=lambda args: _machine_get_temperature(args))
+    rtmt.tools["machine_set_temperature"] = Tool(schema=_machine_set_temperature_schema, target=lambda args: _machine_set_temperature(args))
+    rtmt.tools["machine_get_temperature"] = Tool(schema=_machine_get_temperature_schema, target=lambda args: _machine_get_temperature(args))
