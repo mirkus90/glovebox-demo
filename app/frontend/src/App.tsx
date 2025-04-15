@@ -10,6 +10,7 @@ import StatusMessage from "@/components/ui/status-message";
 import useRealTime from "@/hooks/useRealtime";
 import useAudioRecorder from "@/hooks/useAudioRecorder";
 import useAudioPlayer from "@/hooks/useAudioPlayer";
+import useSTT from "@/hooks/useSTT";
 
 import { GroundingFile, ToolResult } from "./types";
 
@@ -17,6 +18,7 @@ import { GroundingFile, ToolResult } from "./types";
 
 function App() {
     const [isRecording, setIsRecording] = useState(false);
+    const [isActivationDetecting, setIsActivationDetecting] = useState(false);
     const [groundingFiles, setGroundingFiles] = useState<GroundingFile[]>([]);
     const [selectedFile, setSelectedFile] = useState<GroundingFile | null>(null);
 
@@ -46,19 +48,48 @@ function App() {
     const { reset: resetAudioPlayer, play: playAudio, stop: stopAudioPlayer } = useAudioPlayer();
     const { start: startAudioRecording, stop: stopAudioRecording } = useAudioRecorder({ onAudioRecorded: addUserAudio });
 
+    const {
+        start: startKeywordRecognition,
+        reset: resetKeywordRecognition,
+        stop: stopKeywordRecognition
+    } = useSTT({
+        onKeywordDetected: () => {
+            console.log("Keyword detected");
+            setIsActivationDetecting(false);
+            onToggleListening();
+        }
+    });
+
     const onToggleListening = async () => {
         if (!isRecording) {
             startSession();
             await startAudioRecording();
             resetAudioPlayer();
 
+            // addUserText("Hey assistant");
             setIsRecording(true);
         } else {
             await stopAudioRecording();
             stopAudioPlayer();
             inputAudioBufferClear();
+            // when stopping the conversation with the AI, start again the recognition of keyword
+            await startKeywordRecognition();
 
             setIsRecording(false);
+        }
+    };
+
+    const onStartAppButtonClick = async () => {
+        if (!isActivationDetecting && !isRecording) {
+            await resetKeywordRecognition();
+            await startKeywordRecognition();
+            setIsActivationDetecting(true);
+        } else {
+            await stopKeywordRecognition();
+            if (isRecording) {
+                onToggleListening();
+            }
+            setIsActivationDetecting(false);
         }
     };
 
@@ -66,15 +97,21 @@ function App() {
 
     return (
         <div className="flex min-h-screen flex-col bg-gray-100 text-gray-900">
-            {/* <div className="p-4 sm:absolute sm:left-4 sm:top-4">
-                <img src={logo} alt="Azure logo" className="h-16 w-16" />
-            </div> */}
+            <div className="p-4 sm:absolute sm:left-4 sm:top-4">
+                <Button
+                    onClick={onStartAppButtonClick}
+                    className={`h-12 w-60 ${!isActivationDetecting && !isRecording ? "bg-green-600 hover:bg-green-700" : "bg-red-600 hover:bg-red-600"}`}
+                >
+                    {!isActivationDetecting && !isRecording ? t("app.start") : t("app.stop")}
+                </Button>
+            </div>
             <main className="flex flex-grow flex-col items-center justify-center">
                 <h1 className="mb-8 bg-gradient-to-r from-blue-600 to-blue-600 bg-clip-text text-4xl font-bold text-transparent md:text-7xl">
                     {t("app.title")}
                 </h1>
                 <div className="mb-4 flex flex-col items-center justify-center">
                     <Button
+                        disabled={isActivationDetecting || !isRecording}
                         onClick={onToggleListening}
                         className={`h-12 w-60 ${isRecording ? "bg-red-600 hover:bg-red-700" : "bg-blue-600 hover:bg-blue-600"}`}
                         aria-label={isRecording ? t("app.stopRecording") : t("app.startRecording")}

@@ -31,6 +31,11 @@ export type InputAudioBufferClearCommand = {
     type: "input_audio_buffer.clear";
 };
 
+export type InputTextCommand = {
+    type: "input_text";
+    text: string;
+};
+
 export type Message = {
     type: string;
 };

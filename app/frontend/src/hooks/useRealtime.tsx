@@ -9,7 +9,8 @@ import {
     ResponseDone,
     SessionUpdateCommand,
     ExtensionMiddleTierToolResponse,
-    ResponseInputAudioTranscriptionCompleted
+    ResponseInputAudioTranscriptionCompleted,
+    InputTextCommand
 } from "@/types";
 
 type Parameters = {
@@ -91,6 +92,15 @@ export default function useRealTime({
         sendJsonMessage(command);
     };
 
+    const addUserText = (text: string) => {
+        const command: InputTextCommand = {
+            type: "input_text",
+            text: text
+        };
+
+        sendJsonMessage(command);
+    };
+
     const inputAudioBufferClear = () => {
         const command: InputAudioBufferClearCommand = {
             type: "input_audio_buffer.clear"
@@ -135,5 +145,5 @@ export default function useRealTime({
         }
     };
 
-    return { startSession, addUserAudio, inputAudioBufferClear };
+    return { startSession, addUserAudio, inputAudioBufferClear, addUserText };
 }

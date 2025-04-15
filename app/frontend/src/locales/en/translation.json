@@ -2,6 +2,8 @@
     "app": {
         "title": "Glovebox Assistant",
         "footer": "WARNING - Only intended for demo purposes",
+        "start": "Start app",
+        "stop": "Stop app",
         "stopRecording": "Stop recording",
         "startRecording": "Start recording",
         "stopConversation": "Stop conversation"

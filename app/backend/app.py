@@ -11,6 +11,7 @@ from ragtools import attach_rag_tools
 from machine_tools import attach_machine_tools
 from calculator_tools import attach_calculator_tools
 from rtmt import RTMiddleTier
+from speech_service import get_speech_token
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("voicerag")
@@ -77,7 +78,9 @@ async def create_app():
     rtmt.attach_to_app(app, "/realtime")
 
     current_directory = Path(__file__).parent
-    app.add_routes([web.get('/', lambda _: web.FileResponse(current_directory / 'static/index.html'))])
+    app.add_routes([
+        web.get('/', lambda _: web.FileResponse(current_directory / 'static/index.html')),
+        web.get('/speech/token', get_speech_token)])
     app.router.add_static('/', path=current_directory / 'static', name='static')
     
     return app
