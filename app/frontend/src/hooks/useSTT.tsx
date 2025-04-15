@@ -26,13 +26,11 @@ export default function useSTT(params: STTParameters) {
 
     if (recognizer.current) {
         recognizer.current.recognized = (_, event) => {
-            console.log(`RECOGNIZED: Text=${event.result.text}`);
+            console.log(`RECOGNIZED for keyword: Text=${event.result.text}`);
             if (event.result.text.toLowerCase().includes("assistant")) {
                 console.log("Keyword detected");
                 recognizer.current?.stopContinuousRecognitionAsync();
                 onKeywordDetected();
-            } else {
-                console.log("ERROR: Speech was cancelled or could not be recognized. Ensure your microphone is working properly.");
             }
         };
     }
