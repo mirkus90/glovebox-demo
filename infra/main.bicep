@@ -75,6 +75,9 @@ param openAiEndpoint string = ''
 param openAiRealtimeDeployment string = ''
 param openAiRealtimeVoiceChoice string = ''
 
+param speechServiceName string = ''
+param speechServiceRegion string = location
+
 @description('Location for the OpenAI resource group')
 @allowed([
   'eastus2'
@@ -185,6 +188,7 @@ module acaBackend 'core/host/container-app-upsert.bicep' = {
   dependsOn: [
     containerApps
     acaIdentity
+    speechService
   ]
   params: {
     name: !empty(backendServiceName) ? backendServiceName : '${abbrs.webSitesContainerApps}backend-${resourceToken}'
@@ -217,6 +221,8 @@ module acaBackend 'core/host/container-app-upsert.bicep' = {
       RUNNING_IN_PRODUCTION: 'true'
       // For using managed identity to access Azure resources. See https://github.com/microsoft/azure-container-apps/issues/442
       AZURE_CLIENT_ID: acaIdentity.outputs.clientId
+      AZURE_SPEECH_REGION: speechServiceRegion
+      AZURE_SPEECH_RESOURCE_ID: speechService.outputs.resourceId
     }
   }
 }
@@ -354,6 +360,31 @@ module storage 'br/public:avm/res/storage/storage-account:0.9.1' = {
   }
 }
 
+module speechService 'br/public:avm/res/cognitive-services/account:0.8.0' = {
+  name: 'speech-service'
+  scope: resourceGroup
+  params: {
+    name: !empty(speechServiceName) ? speechServiceName : '${abbrs.cognitiveServicesSpeech}${resourceToken}'
+    location: location
+    tags: tags
+    kind: 'SpeechServices'
+    sku: 'S0'
+    disableLocalAuth: true
+    publicNetworkAccess: 'Enabled'
+    networkAcls: {
+      defaultAction: 'Allow'
+      bypass: 'AzureServices'
+    }
+    roleAssignments: [
+      {
+        roleDefinitionIdOrName: 'Cognitive Services Speech User'
+        principalId: principalId
+        principalType: principalType
+      }
+    ]
+  }
+}
+
 // Roles for the backend to access other services
 module openAiRoleBackend 'core/security/role.bicep' = {
   scope: openAiResourceGroup
@@ -373,6 +404,17 @@ module searchRoleBackend 'core/security/role.bicep' = {
   params: {
     principalId: acaBackend.outputs.identityPrincipalId
     roleDefinitionId: '1407120a-92aa-4202-b7e9-c0e197c71c8f'
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// Cognitive Services Speech user, used to get token for speech service
+module cognitiveSpeechUserRoleBackend 'core/security/role.bicep' = {
+  scope: resourceGroup
+  name: 'cognitive-speech-role-backend'
+  params: {
+    principalId: acaBackend.outputs.identityPrincipalId
+    roleDefinitionId: 'f2dc8367-1007-4938-bd23-fe263f013447'
     principalType: 'ServicePrincipal'
   }
 }
