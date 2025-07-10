@@ -31,6 +31,7 @@ type Parameters = {
     onReceivedExtensionMiddleTierToolResponse?: (message: ExtensionMiddleTierToolResponse) => void;
     onReceivedResponseAudioTranscriptDelta?: (message: ResponseAudioTranscriptDelta) => void;
     onReceivedInputAudioTranscriptionCompleted?: (message: ResponseInputAudioTranscriptionCompleted) => void;
+    onReceivedInputAudioBufferCleared?: () => void;
     onReceivedError?: (message: Message) => void;
 };
 
@@ -50,6 +51,7 @@ export default function useRealTime({
     onReceivedInputAudioBufferSpeechStarted,
     onReceivedExtensionMiddleTierToolResponse,
     onReceivedInputAudioTranscriptionCompleted,
+    onReceivedInputAudioBufferCleared,
     onReceivedError
 }: Parameters) {
     const wsEndpoint = useDirectAoaiApi
@@ -69,14 +71,41 @@ export default function useRealTime({
             type: "session.update",
             session: {
                 turn_detection: {
-                    type: "server_vad"
+                    // turn detection configuration
+                    type: import.meta.env.VITE_TURN_DETECTION_TYPE as TurnDetectionType,
+                    ...(import.meta.env.VITE_TURN_DETECTION_PREFIX_PADDING_MS
+                        ? {
+                              prefix_padding_ms: Number(import.meta.env.VITE_TURN_DETECTION_PREFIX_PADDING_MS)
+                          }
+                        : {}),
+                    ...(import.meta.env.VITE_TURN_DETECTION_THRESHOLD
+                        ? {
+                              threshold: parseFloat(String(import.meta.env.VITE_TURN_DETECTION_THRESHOLD))
+                          }
+                        : {}),
+                    ...(import.meta.env.VITE_TURN_DETECTION_SILENCE_DURATION_MS
+                        ? {
+                              silence_duration_ms: Number(import.meta.env.VITE_TURN_DETECTION_SILENCE_DURATION_MS)
+                          }
+                        : {}),
+                    ...(import.meta.env.VITE_TURN_DETECTION_INTERRUPT_RESPONSE
+                        ? {
+                              interrupt_response: import.meta.env.VITE_TURN_DETECTION_INTERRUPT_RESPONSE === "true"
+                          }
+                        : {}),
+                    ...(import.meta.env.VITE_TURN_DETECTION_EAGERNESS
+                        ? {
+                              eagerness: import.meta.env.VITE_TURN_DETECTION_EAGERNESS as TurnDetectionEagerness
+                          }
+                        : {})
                 }
             }
         };
 
         if (enableInputAudioTranscription) {
             command.session.input_audio_transcription = {
-                model: "whisper-1"
+                // use the gpt-4o-transcribe model for audio transcription as it is quicker than whisper-1 and with higher rate limit
+                model: "gpt-4o-transcribe"
             };
         }
 
@@ -138,6 +167,10 @@ export default function useRealTime({
                 break;
             case "extension.middle_tier_tool_response":
                 onReceivedExtensionMiddleTierToolResponse?.(message as ExtensionMiddleTierToolResponse);
+                break;
+            // handle the case when the input audio buffer is cleared (as effect of the input_audio_buffer.clear command sent by the server on the stop keyword)
+            case "input_audio_buffer.cleared":
+                onReceivedInputAudioBufferCleared?.();
                 break;
             case "error":
                 onReceivedError?.(message);

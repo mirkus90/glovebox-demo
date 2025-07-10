@@ -14,12 +14,12 @@ hooks:
     postprovision:
       windows:
         shell: pwsh
-        run: ./scripts/write_env.ps1; ./scripts/setup_intvect.ps1
+        run: ./scripts/setup_intvect.ps1
         interactive: true
         continueOnError: false
       posix:
         shell: sh
-        run: ./scripts/write_env.sh; ./scripts/setup_intvect.sh
+        run: ./scripts/setup_intvect.sh
         interactive: true
         continueOnError: false
 pipeline:
@@ -31,6 +31,8 @@ pipeline:
     - AZURE_OPENAI_REALTIME_DEPLOYMENT
     - AZURE_OPENAI_REALTIME_DEPLOYMENT_CAPACITY
     - AZURE_OPENAI_REALTIME_DEPLOYMENT_VERSION
+    - AZURE_OPENAI_TRANSCRIPTION_DEPLOYMENT_VERSION
+    - AZURE_OPENAI_TRANSCRIPTION_DEPLOYMENT_CAPACITY
     - AZURE_OPENAI_EMB_DEPLOYMENT_CAPACITY
     - AZURE_OPENAI_EMB_DIMENSIONS
     - AZURE_SEARCH_INDEX
@@ -53,3 +55,5 @@ pipeline:
     - AZURE_CONTAINER_APP_NAME
     - AZURE_LOG_ANALYTICS
     - AZURE_CONTAINER_APPS_WORKLOAD_PROFILE
+    - AZURE_SPEECH_RESOURCE_ID
+    - AZURE_SPEECH_REGION

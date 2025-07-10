@@ -14,10 +14,15 @@ export type SessionUpdateCommand = {
     type: "session.update";
     session: {
         turn_detection?: {
-            type: "server_vad" | "none";
+            type?: TurnDetectionType;
+            threshold?: number;
+            prefix_padding_ms?: number;
+            silence_duration_ms?: number;
+            interrupt_response?: boolean;
+            eagerness?: TurnDetectionEagerness;
         };
         input_audio_transcription?: {
-            model: "whisper-1";
+            model: "whisper-1" | "gpt-4o-transcribe";
         };
     };
 };

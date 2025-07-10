@@ -1,0 +1,172 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "contentVersion": "1.0.0.0",
+        "triggers": {
+            "replaceFileContent": {
+                "type": "Request",
+                "kind": "Http",
+                "inputs": {
+                    "method": "POST",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "filePath": {
+                                "type": "string"
+                            },
+                            "oldText": {
+                                "type": "string"
+                            },
+                            "newText": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "operationOptions": "EnableSchemaValidation"
+            }
+        },
+        "actions": {
+            "Condition": {
+                "actions": {
+                    "Compose": {
+                        "type": "Compose",
+                        "inputs": "@replace(body('Get_file_content_using_path'), triggerBody()?['oldText'], triggerBody()?['newText'])"
+                    },
+                    "Get_file_metadata_using_path": {
+                        "runAfter": {
+                            "Compose": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['onedriveforbusiness']['connectionId']"
+                                }
+                            },
+                            "method": "get",
+                            "path": "/datasets/default/GetFileByPath",
+                            "queries": {
+                                "path": "@triggerBody()?['filePath']"
+                            }
+                        }
+                    },
+                    "Update_file": {
+                        "runAfter": {
+                            "Get_file_metadata_using_path": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "ApiConnection",
+                        "inputs": {
+                            "host": {
+                                "connection": {
+                                    "name": "@parameters('$connections')['onedriveforbusiness']['connectionId']"
+                                }
+                            },
+                            "method": "put",
+                            "body": "@outputs('Compose')",
+                            "path": "/datasets/default/files/@{encodeURIComponent(encodeURIComponent(body('Get_file_metadata_using_path')?['Id']))}"
+                        },
+                        "runtimeConfiguration": {
+                            "contentTransfer": {
+                                "transferMode": "Chunked"
+                            }
+                        }
+                    },
+                    "Response_OK": {
+                        "runAfter": {
+                            "Update_file": [
+                                "Succeeded"
+                            ]
+                        },
+                        "type": "Response",
+                        "kind": "Http",
+                        "inputs": {
+                            "statusCode": 200
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Get_file_content_using_path": [
+                        "Succeeded"
+                    ]
+                },
+                "else": {
+                    "actions": {
+                        "Response_KO": {
+                            "type": "Response",
+                            "kind": "Http",
+                            "inputs": {
+                                "statusCode": 400,
+                                "body": "No occurrence of the value @{triggerBody()?['oldText']} found within the file"
+                            }
+                        }
+                    }
+                },
+                "expression": {
+                    "and": [
+                        {
+                            "contains": [
+                                "@body('Get_file_content_using_path')",
+                                "@triggerBody()?['oldText']"
+                            ]
+                        }
+                    ]
+                },
+                "type": "If"
+            },
+            "Response_KO_FileNotFound": {
+                "runAfter": {
+                    "Get_file_content_using_path": [
+                        "Failed"
+                    ]
+                },
+                "type": "Response",
+                "kind": "Http",
+                "inputs": {
+                    "statusCode": 404,
+                    "body": "File not found"
+                }
+            },
+            "Get_file_content_using_path": {
+                "runAfter": {},
+                "type": "ApiConnection",
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['onedriveforbusiness']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/datasets/default/GetFileContentByPath",
+                    "queries": {
+                        "path": "@triggerBody()?['filePath']",
+                        "inferContentType": true
+                    }
+                }
+            }
+        },
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "type": "Object",
+                "defaultValue": {}
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "type": "Object",
+            "defaultValue": {
+                "onedriveforbusiness": {
+                    "id": "/subscriptions/<subscription-id>/providers/Microsoft.Web/locations/<location>/managedApis/onedriveforbusiness",
+                    "connectionId": "/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.Web/connections/onedriveforbusiness",
+                    "connectionName": "onedriveforbusiness"
+                }
+            }
+        }
+    }
+}

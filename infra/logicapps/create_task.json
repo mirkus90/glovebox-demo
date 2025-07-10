@@ -1,0 +1,195 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "contentVersion": "1.0.0.0",
+        "triggers": {
+            "createTask": {
+                "type": "Request",
+                "kind": "Http",
+                "inputs": {
+                    "method": "POST",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "baseUrl": {
+                                "type": "string"
+                            },
+                            "taskList": {
+                                "type": "string"
+                            },
+                            "taskTitle": {
+                                "type": "string"
+                            },
+                            "taskText": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "actions": {
+            "List_task_lists": {
+                "runAfter": {
+                    "Initialize_variables": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection",
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['googletasks']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/users/@me/lists"
+                }
+            },
+            "Initialize_variables": {
+                "runAfter": {},
+                "type": "InitializeVariable",
+                "inputs": {
+                    "variables": [
+                        {
+                            "name": "taskListItemId",
+                            "type": "string"
+                        }
+                    ]
+                }
+            },
+            "Response_OK": {
+                "runAfter": {
+                    "Create_a_task_in_a_task_list": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "Response",
+                "kind": "Http",
+                "inputs": {
+                    "statusCode": 200
+                }
+            },
+            "Create_a_task_in_a_task_list": {
+                "runAfter": {
+                    "Until": [
+                        "Succeeded"
+                    ]
+                },
+                "type": "ApiConnection",
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['googletasks']['connectionId']"
+                        }
+                    },
+                    "method": "post",
+                    "body": {
+                        "title": "@triggerBody()?['taskTitle']",
+                        "notes": "@triggerBody()?['taskText']"
+                    },
+                    "path": "/lists/@{encodeURIComponent(variables('taskListItemId'))}/tasks"
+                }
+            },
+            "Until": {
+                "actions": {
+                    "Filter_array": {
+                        "type": "Query",
+                        "inputs": {
+                            "from": "@body('List_task_lists')?['items']",
+                            "where": "@equals(item()?['title'],triggerBody()?['taskList'])"
+                        }
+                    },
+                    "Check_if_task_list_exists": {
+                        "actions": {
+                            "Set_variable": {
+                                "type": "SetVariable",
+                                "inputs": {
+                                    "name": "taskListItemId",
+                                    "value": "@body('Filter_array')[0]?['id']"
+                                }
+                            }
+                        },
+                        "runAfter": {
+                            "Filter_array": [
+                                "Succeeded"
+                            ]
+                        },
+                        "else": {
+                            "actions": {
+                                "Create_a_task_list": {
+                                    "type": "ApiConnection",
+                                    "inputs": {
+                                        "host": {
+                                            "connection": {
+                                                "name": "@parameters('$connections')['googletasks']['connectionId']"
+                                            }
+                                        },
+                                        "method": "post",
+                                        "body": {
+                                            "title": "@triggerBody()?['taskList']"
+                                        },
+                                        "path": "/users/@me/lists"
+                                    }
+                                },
+                                "Update_New_Task_List_Item": {
+                                    "runAfter": {
+                                        "Create_a_task_list": [
+                                            "Succeeded"
+                                        ]
+                                    },
+                                    "type": "SetVariable",
+                                    "inputs": {
+                                        "name": "taskListItemId",
+                                        "value": "@body('Create_a_task_list')?['id']"
+                                    }
+                                }
+                            }
+                        },
+                        "expression": {
+                            "and": [
+                                {
+                                    "greater": [
+                                        "@length(body('Filter_array'))",
+                                        0
+                                    ]
+                                }
+                            ]
+                        },
+                        "type": "If"
+                    }
+                },
+                "runAfter": {
+                    "List_task_lists": [
+                        "Succeeded"
+                    ]
+                },
+                "expression": "@not(equals(variables('taskListItemId'),'\"\"'))",
+                "limit": {
+                    "count": 60,
+                    "timeout": "PT1H"
+                },
+                "type": "Until"
+            }
+        },
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "type": "Object",
+                "defaultValue": {}
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "type": "Object",
+            "value": {
+                "googletasks": {
+                    "id": "/subscriptions/<subscription-id>/providers/Microsoft.Web/locations/<location>/managedApis/googletasks",
+                    "connectionId": "/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.Web/connections/googletasks",
+                    "connectionName": "googletasks"
+                }
+            }
+        }
+    }
+}

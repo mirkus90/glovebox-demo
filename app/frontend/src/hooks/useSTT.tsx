@@ -25,9 +25,11 @@ export default function useSTT(params: STTParameters) {
     };
 
     if (recognizer.current) {
-        recognizer.current.recognized = (_, event) => {
-            console.log(`RECOGNIZED for keyword: Text=${event.result.text}`);
-            if (event.result.text.toLowerCase().includes("assistant")) {
+        // check the STT transcription for the activation keyword on the recognizing event, rather than recognized event
+        // this allows to detect the keyword even if the user speaks it in the middle of a sentence and avoid waiting the STT service to finish processing the whole sentence
+        recognizer.current.recognizing = (_, event) => {
+            console.log(`Text recognized for activation: Text=${event.result.text}`);
+            if (event.result.text.toLowerCase().includes(import.meta.env.VITE_KEYWORD_ACTIVATION)) {
                 console.log("Keyword detected");
                 recognizer.current?.stopContinuousRecognitionAsync();
                 onKeywordDetected();

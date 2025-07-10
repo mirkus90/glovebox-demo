@@ -7,14 +7,16 @@ from azure.core.credentials import AzureKeyCredential
 from azure.identity import AzureDeveloperCliCredential, DefaultAzureCredential
 from dotenv import load_dotenv
 
-from ragtools import attach_rag_tools
-from machine_tools import attach_machine_tools
-from calculator_tools import attach_calculator_tools
+from agents.ragtools import attach_rag_tools
+from agents.machine_tools import attach_machine_tools
+from agents.calculator_tools import attach_calculator_tools
+from agents.notepad_tools import attach_notepad_tools
+from agents.todolist_tools import attach_todolist_tools
 from rtmt import RTMiddleTier
 from speech_service import get_speech_token
 
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("voicerag")
+logger = logging.getLogger("voiceassistant")
 
 async def create_app():
     if not os.environ.get("RUNNING_IN_PRODUCTION"):
@@ -26,7 +28,8 @@ async def create_app():
 
     credential = None
     if not llm_key or not search_key:
-        if tenant_id := os.environ.get("AZURE_TENANT_ID"):
+        # IMPORTANT: if you are running this app in production, you must not set the AZURE_TENANT_ID environment variable.
+        if (tenant_id := os.environ.get("AZURE_TENANT_ID")) and not os.environ.get("RUNNING_IN_PRODUCTION"):
             logger.info("Using AzureDeveloperCliCredential with tenant_id %s", tenant_id)
             credential = AzureDeveloperCliCredential(tenant_id=tenant_id, process_timeout=60)
         else:
@@ -52,8 +55,10 @@ async def create_app():
         1. Always use the 'search' tool when the user asks for experiments data. 
         2. Always use the 'report_grounding' tool to report the source of information from the knowledge base.
         3. Always use the 'calculator' tools to perform arithmetic operations. Always provide the result of the operation. 
-        4. Always use the 'machine' tools to answer questions about the Glovebox machine, like its status or temperature, or to set parameters of the machine.
-        5. Produce an answer that's as short as possible. If the answer isn't in the knowledge base, say you don't know.
+        4. Always use the 'machine' tools to answer questions about the Junior machine, like its status or temperature, or to set parameters of the machine.
+        5. Always use the 'notepad' tools when the user asks to save a note or modify a file, for example when the user takes a sample on the Glovebox and needs to update the corresponding file.
+        6. Always use the 'todolist' tools when the user asks to create a task, a to-do list or a reminder, for example when the user asks to create a task to perform an experiment.
+        7. Produce an answer that's as short as possible. If the answer isn't in the knowledge base, say you don't know.
     """.strip()
 
     # attach RAG agent
@@ -74,6 +79,12 @@ async def create_app():
 
     # attach Calculator agent
     attach_calculator_tools(rtmt)
+
+    # attach Notepad agent
+    attach_notepad_tools(rtmt)
+
+    # attach ToDoList agent
+    attach_todolist_tools(rtmt)
 
     rtmt.attach_to_app(app, "/realtime")
 

@@ -17,6 +17,7 @@ param environmentName string
   'westus'
   'westus2'
   'westcentralus'
+  'swedencentral'
   'northeurope'
   'francecentral'
   'switzerlandnorth'
@@ -77,6 +78,7 @@ param openAiRealtimeVoiceChoice string = ''
 
 param speechServiceName string = ''
 param speechServiceRegion string = location
+param keywordDeactivation string = ''
 
 @description('Location for the OpenAI resource group')
 @allowed([
@@ -93,11 +95,16 @@ param openAiServiceLocation string
 param realtimeDeploymentCapacity int
 param realtimeDeploymentVersion string
 param embeddingDeploymentCapacity int
+param transcriptionDeploymentVersion string
+param transcriptionDeploymentCapacity int
 
 param tenantId string = tenant().tenantId
 
 @description('Id of the user or app to assign application roles')
 param principalId string = ''
+
+@description('Whether to deploy Logic Apps for file operations')
+param deployLogicApps bool = true
 
 var abbrs = loadJsonContent('abbreviations.json')
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
@@ -117,6 +124,10 @@ param azureContainerAppsWorkloadProfile string
 
 param acaIdentityName string = '${environmentName}-aca-identity'
 param containerRegistryName string = '${replace(environmentName, '-', '')}acr'
+
+// Logic Apps parameters
+@description('Base URL for Notepad file operations')
+param notepadBaseUrl string = '/Documenti Mirko/PROJECTS/ROCHE/Samples'
 
 // Figure out if we're running as a user or service principal
 var principalType = empty(runningOnGh) && empty(runningOnAdo) ? 'User' : 'ServicePrincipal'
@@ -185,11 +196,6 @@ module containerApps 'core/host/container-apps.bicep' = {
 module acaBackend 'core/host/container-app-upsert.bicep' = {
   name: 'aca-web'
   scope: resourceGroup
-  dependsOn: [
-    containerApps
-    acaIdentity
-    speechService
-  ]
   params: {
     name: !empty(backendServiceName) ? backendServiceName : '${abbrs.webSitesContainerApps}backend-${resourceToken}'
     location: location
@@ -223,11 +229,19 @@ module acaBackend 'core/host/container-app-upsert.bicep' = {
       AZURE_CLIENT_ID: acaIdentity.outputs.clientId
       AZURE_SPEECH_REGION: speechServiceRegion
       AZURE_SPEECH_RESOURCE_ID: speechService.outputs.resourceId
+      KEYWORD_DEACTIVATION: keywordDeactivation
+      // Logic Apps environment variables - URLs will need to be set post-deployment
+      NOTEPAD_REPLACE_FILE_CONTENT_API_URL: deployLogicApps ? 'PLACEHOLDER_${logicApps.outputs.logicApps.replaceFileContent.name}' : ''
+      NOTEPAD_GET_FILE_NAME_API_URL: deployLogicApps ? 'PLACEHOLDER_${logicApps.outputs.logicApps.getFileName.name}' : ''      
+      NOTEPAD_APPEND_FILE_CONTENT_API_URL: deployLogicApps ? 'PLACEHOLDER_${logicApps.outputs.logicApps.appendFileContent.name}' : ''
+      NOTEPAD_BASE_URL: notepadBaseUrl
+      TODOLIST_CREATE_TASK_API_URL: deployLogicApps ? 'PLACEHOLDER_${logicApps.outputs.logicApps.createTask.name}' : ''
     }
   }
 }
 
 var embedModel = 'text-embedding-3-large'
+var transcriptionModel = 'gpt-4o-transcribe'
 var openAiDeployments = [
   {
     name: 'gpt-4o-realtime-preview'
@@ -251,6 +265,18 @@ var openAiDeployments = [
     sku: {
       name: 'Standard'
       capacity: embeddingDeploymentCapacity
+    }
+  }
+  {
+    name: transcriptionModel
+    model: {
+      format: 'OpenAI'
+      name: transcriptionModel
+      version: transcriptionDeploymentVersion
+    }
+    sku: {
+      name: 'GlobalStandard'
+      capacity: transcriptionDeploymentCapacity
     }
   }
 ]
@@ -385,6 +411,18 @@ module speechService 'br/public:avm/res/cognitive-services/account:0.8.0' = {
   }
 }
 
+// Logic Apps for file operations
+module logicApps 'core/integration/logicapps.bicep' = if (deployLogicApps) {
+  name: 'logic-apps'
+  scope: resourceGroup
+  params: {
+    environmentName: environmentName
+    location: location
+    resourceToken: resourceToken
+    tags: tags
+  }
+}
+
 // Roles for the backend to access other services
 module openAiRoleBackend 'core/security/role.bicep' = {
   scope: openAiResourceGroup
@@ -442,7 +480,6 @@ module openAiRoleSearchService 'core/security/role.bicep' = if (!reuseExistingSe
 }
 
 output AZURE_LOCATION string = location
-output AZURE_TENANT_ID string = tenantId
 output AZURE_RESOURCE_GROUP string = resourceGroup.name
 
 output AZURE_OPENAI_ENDPOINT string = reuseExistingOpenAi ? openAiEndpoint : openAi.outputs.endpoint
@@ -464,7 +501,7 @@ output AZURE_SEARCH_TITLE_FIELD string = searchTitleField
 output AZURE_SEARCH_EMBEDDING_FIELD string = searchEmbeddingField
 output AZURE_SEARCH_USE_VECTOR_QUERY bool = searchUseVectorQuery
 
-output AZURE_STORAGE_ENDPOINT string = 'https://${storage.outputs.name}.blob.core.windows.net'
+output AZURE_STORAGE_ENDPOINT string = 'https://${storage.outputs.name}.blob.${environment().suffixes.storage}'
 output AZURE_STORAGE_ACCOUNT string = storage.outputs.name
 output AZURE_STORAGE_CONNECTION_STRING string = 'ResourceId=/subscriptions/${subscription().subscriptionId}/resourceGroups/${storageResourceGroup.name}/providers/Microsoft.Storage/storageAccounts/${storage.outputs.name}'
 output AZURE_STORAGE_CONTAINER string = storageContainerName
@@ -472,3 +509,12 @@ output AZURE_STORAGE_RESOURCE_GROUP string = storageResourceGroup.name
 
 output BACKEND_URI string = acaBackend.outputs.uri
 output AZURE_CONTAINER_REGISTRY_ENDPOINT string = containerApps.outputs.registryLoginServer
+
+output AZURE_SPEECH_REGION string = speechServiceRegion
+output AZURE_SPEECH_RESOURCE_ID string = speechService.outputs.resourceId
+output KEYWORD_DEACTIVATION string = keywordDeactivation
+
+// Logic Apps outputs
+output NOTEPAD_BASE_URL string = notepadBaseUrl
+output LOGIC_APPS_INFO object = deployLogicApps ? logicApps.outputs.logicApps : {}
+output LOGIC_APPS_TRIGGER_URLS object = deployLogicApps ? logicApps.outputs.triggerUrls : {}

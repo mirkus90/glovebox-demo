@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# Define the .env file path
 ENV_FILE_PATH="app/backend/.env"
 
 # Clear the contents of the .env file
@@ -19,3 +18,14 @@ echo "AZURE_SEARCH_CONTENT_FIELD=$(azd env get-value AZURE_SEARCH_CONTENT_FIELD)
 echo "AZURE_SEARCH_TITLE_FIELD=$(azd env get-value AZURE_SEARCH_TITLE_FIELD)" >> $ENV_FILE_PATH
 echo "AZURE_SEARCH_EMBEDDING_FIELD=$(azd env get-value AZURE_SEARCH_EMBEDDING_FIELD)" >> $ENV_FILE_PATH
 echo "AZURE_SEARCH_USE_VECTOR_QUERY=$(azd env get-value AZURE_SEARCH_USE_VECTOR_QUERY)" >> $ENV_FILE_PATH
+echo "AZURE_SPEECH_REGION=$(azd env get-value AZURE_SPEECH_REGION)" >> $ENV_FILE_PATH
+echo "AZURE_SPEECH_RESOURCE_ID=$(azd env get-value AZURE_SPEECH_RESOURCE_ID)" >> $ENV_FILE_PATH
+echo "KEYWORD_DEACTIVATION=$(azd env get-value KEYWORD_DEACTIVATION)" >> $ENV_FILE_PATH
+echo "NOTEPAD_BASE_URL=$(azd env get-value NOTEPAD_BASE_URL)" >> $ENV_FILE_PATH
+
+# Note: Logic Apps trigger URLs need to be manually retrieved and added after deployment
+# You can get them from the Azure portal or use Azure CLI to retrieve the callback URLs
+echo "NOTEPAD_REPLACE_FILE_CONTENT_API_URL=" >> $ENV_FILE_PATH
+echo "NOTEPAD_GET_FILE_NAME_API_URL=" >> $ENV_FILE_PATH
+echo "NOTEPAD_APPEND_FILE_CONTENT_API_URL=" >> $ENV_FILE_PATH
+echo "TODOLIST_CREATE_TASK_API_URL=" >> $ENV_FILE_PATH

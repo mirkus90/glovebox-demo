@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import os
 from enum import Enum
 from typing import Any, Callable, Optional
 
@@ -9,7 +10,7 @@ from aiohttp import web
 from azure.core.credentials import AzureKeyCredential
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 
-logger = logging.getLogger("voicerag")
+logger = logging.getLogger("voiceassistant")
 
 class ToolResultDirection(Enum):
     TO_SERVER = 1
@@ -48,6 +49,7 @@ class RTMiddleTier:
     endpoint: str
     deployment: str
     key: Optional[str] = None
+    current_session_id: Optional[str] = None
     
     # Tools are server-side only for now, though the case could be made for client-side tools
     # in addition to server-side tools that are invisible to the client
@@ -76,85 +78,123 @@ class RTMiddleTier:
         else:
             self._token_provider = get_bearer_token_provider(credentials, "https://cognitiveservices.azure.com/.default")
             self._token_provider() # Warm up during startup so we have a token cached when the first request arrives
+        self.current_session_id = None
 
     async def _process_message_to_client(self, msg: str, client_ws: web.WebSocketResponse, server_ws: web.WebSocketResponse) -> Optional[str]:
-        message = json.loads(msg.data)
-        updated_message = msg.data
-        if message is not None:
-            match message["type"]:
-                case "session.created":
-                    session = message["session"]
-                    # Hide the instructions, tools and max tokens from clients, if we ever allow client-side 
-                    # tools, this will need updating
-                    session["instructions"] = ""
-                    session["tools"] = []
-                    session["voice"] = self.voice_choice
-                    session["tool_choice"] = "none"
-                    session["max_response_output_tokens"] = None
-                    updated_message = json.dumps(message)
+        # putting all the logic in a try/except block to avoid the websocket connection to be closed in case of errors
+        # this also allows the client to reconnect to the server and not losing the session with all the tools registered
+        try:
+            message = json.loads(msg.data)
+        except json.JSONDecodeError:
+            logger.error("Error decoding JSON message: %s", msg.data)
+            raise
+        try:
+            updated_message = msg.data
+            if message is not None:
+                match message["type"]:
+                    case "session.created":
+                        session = message["session"]
+                        # Set the session ID to the current session ID
+                        self.current_session_id = session.get("id")
+                        # Hide the instructions, tools and max tokens from clients, if we ever allow client-side 
+                        # tools, this will need updating
+                        session["instructions"] = ""
+                        session["tools"] = []
+                        session["voice"] = self.voice_choice
+                        session["tool_choice"] = "none"
+                        session["max_response_output_tokens"] = None
+                        updated_message = json.dumps(message)
 
-                case "response.output_item.added":
-                    if "item" in message and message["item"]["type"] == "function_call":
+                    case "response.output_item.added":
+                        if "item" in message and message["item"]["type"] == "function_call":
+                            updated_message = None
+
+                    case "conversation.item.created":
+                        if "item" in message and message["item"]["type"] == "function_call":
+                            item = message["item"]
+                            if item["call_id"] not in self._tools_pending:
+                                self._tools_pending[item["call_id"]] = RTToolCall(item["call_id"], message["previous_item_id"])
+                            updated_message = None
+                        elif "item" in message and message["item"]["type"] == "function_call_output":
+                            updated_message = None
+
+                    case "response.function_call_arguments.delta":
+                        updated_message = None
+                    
+                    case "response.function_call_arguments.done":
                         updated_message = None
 
-                case "conversation.item.created":
-                    if "item" in message and message["item"]["type"] == "function_call":
-                        item = message["item"]
-                        if item["call_id"] not in self._tools_pending:
-                            self._tools_pending[item["call_id"]] = RTToolCall(item["call_id"], message["previous_item_id"])
-                        updated_message = None
-                    elif "item" in message and message["item"]["type"] == "function_call_output":
-                        updated_message = None
-
-                case "response.function_call_arguments.delta":
-                    updated_message = None
-                
-                case "response.function_call_arguments.done":
-                    updated_message = None
-
-                case "response.output_item.done":
-                    if "item" in message and message["item"]["type"] == "function_call":
-                        item = message["item"]
-                        tool_call = self._tools_pending[message["item"]["call_id"]]
-                        tool = self.tools[item["name"]]
-                        args = item["arguments"]
-                        result = await tool.target(json.loads(args))
-                        await server_ws.send_json({
-                            "type": "conversation.item.create",
-                            "item": {
-                                "type": "function_call_output",
-                                "call_id": item["call_id"],
-                                "output": result.to_text() if result.destination == ToolResultDirection.TO_SERVER else ""
-                            }
-                        })
-                        if result.destination == ToolResultDirection.TO_CLIENT:
-                            # TODO: this will break clients that don't know about this extra message, rewrite 
-                            # this to be a regular text message with a special marker of some sort
-                            await client_ws.send_json({
-                                "type": "extension.middle_tier_tool_response",
-                                "previous_item_id": tool_call.previous_id,
-                                "tool_name": item["name"],
-                                "tool_result": result.to_text()
+                    case "response.output_item.done":
+                        if "item" in message and message["item"]["type"] == "function_call":
+                            item = message["item"]
+                            logger.info(f"Tool invocation details: {item}")
+                            tool_call = self._tools_pending[message["item"]["call_id"]]
+                            tool = self.tools[item["name"]]
+                            args_dict = json.loads(item["arguments"])
+                            # Inject sessionId if requested by schema
+                            if (self.current_session_id
+                                and "parameters" in tool.schema
+                                and "properties" in tool.schema["parameters"]
+                                and "session_id" in tool.schema["parameters"]["properties"]
+                            ):
+                                args_dict["session_id"] = self.current_session_id
+                            result = await tool.target(args_dict)
+                            logger.info(f"Tool result: {result}")
+                            await server_ws.send_json({
+                                "type": "conversation.item.create",
+                                "item": {
+                                    "type": "function_call_output",
+                                    "call_id": item["call_id"],
+                                    "output": result.to_text() if result.destination == ToolResultDirection.TO_SERVER else ""
+                                }
                             })
-                        updated_message = None
-                        print(f"Message: {updated_message}")
+                            if result.destination == ToolResultDirection.TO_CLIENT:
+                                # TODO: this will break clients that don't know about this extra message, rewrite 
+                                # this to be a regular text message with a special marker of some sort
+                                await client_ws.send_json({
+                                    "type": "extension.middle_tier_tool_response",
+                                    "previous_item_id": tool_call.previous_id,
+                                    "tool_name": item["name"],
+                                    "tool_result": result.to_text()
+                                })
+                            updated_message = None
 
-                case "response.done":
-                    if len(self._tools_pending) > 0:
-                        self._tools_pending.clear() # Any chance tool calls could be interleaved across different outstanding responses?
-                        await server_ws.send_json({
-                            "type": "response.create"
-                        })
-                    if "response" in message:
-                        replace = False
-                        for i, output in enumerate(reversed(message["response"]["output"])):
-                            if output["type"] == "function_call":
-                                message["response"]["output"].pop(i)
-                                replace = True
-                        if replace:
-                            updated_message = json.dumps(message)                        
-
-        return updated_message
+                    case "response.done":
+                        if len(self._tools_pending) > 0:
+                            self._tools_pending.clear()
+                            await server_ws.send_json({
+                                "type": "response.create"
+                            })
+                        if "response" in message:
+                            replace = False
+                            for i, output in enumerate(reversed(message["response"]["output"])):
+                                if output["type"] == "function_call":
+                                    message["response"]["output"].pop(i)
+                                    replace = True
+                            if replace:
+                                updated_message = json.dumps(message)
+                    # to recognize the stop command in the conversation, we need to enable the audio transcription and check for the stop command in the transcription
+                    case "conversation.item.input_audio_transcription.completed":
+                        # check the deactivation keyword in the transcription
+                        logger.info(f"Message: {message}")
+                        if "transcript" in message and os.environ.get("KEYWORD_DEACTIVATION", "").lower() in message["transcript"].lower():
+                            # clear the audio buffer
+                            await server_ws.send_json({
+                                "type": "input_audio_buffer.clear"
+                            })
+                return updated_message
+        except Exception as e:
+            logger.error(f"Error processing message to client: {e}")
+            await server_ws.send_json({
+                "type": "conversation.item.create",
+                "item": {
+                    "type": "message",
+                    "role": "assistant",
+                    "status": "completed",
+                    "content": [{"type": "text", "text": "There was an error processing your request. Please try again."}],
+                }
+            })
+            return None
 
     async def _process_message_to_server(self, msg: str, ws: web.WebSocketResponse) -> Optional[str]:
         message = json.loads(msg.data)
@@ -189,7 +229,12 @@ class RTMiddleTier:
                 headers = { "api-key": self.key }
             else:
                 headers = { "Authorization": f"Bearer {self._token_provider()}" } # NOTE: no async version of token provider, maybe refresh token on a timer?
-            async with session.ws_connect("/openai/realtime", headers=headers, params=params) as target_ws:
+            # avoid the websocket connection to be closed in case of errors
+            # this allows the client to reconnect to the server and not sending again the session.update event
+            async with session.ws_connect("/openai/realtime", 
+                                          headers=headers, 
+                                          params=params,
+                                          autoclose=False) as target_ws:
                 async def from_client_to_server():
                     async for msg in ws:
                         if msg.type == aiohttp.WSMsgType.TEXT:
@@ -197,11 +242,11 @@ class RTMiddleTier:
                             if new_msg is not None:
                                 await target_ws.send_str(new_msg)
                         else:
-                            print("Error: unexpected message type:", msg.type)
+                            logger.error("Error: unexpected message type:", msg.type)
                     
                     # Means it is gracefully closed by the client then time to close the target_ws
                     if target_ws:
-                        print("Closing OpenAI's realtime socket connection.")
+                        logger.info("Closing OpenAI's realtime socket connection.")
                         await target_ws.close()
                         
                 async def from_server_to_client():
@@ -211,12 +256,16 @@ class RTMiddleTier:
                             if new_msg is not None:
                                 await ws.send_str(new_msg)
                         else:
-                            print("Error: unexpected message type:", msg.type)
+                            logger.error("Error: unexpected message type:", msg.type)
 
                 try:
-                    await asyncio.gather(from_client_to_server(), from_server_to_client())
+                    await asyncio.gather(from_client_to_server(), 
+                                         from_server_to_client())
                 except ConnectionResetError:
                     # Ignore the errors resulting from the client disconnecting the socket
+                    pass
+                except Exception as e:
+                    logger.error(f"Error when processing the message: {e}")
                     pass
 
     async def _websocket_handler(self, request: web.Request):

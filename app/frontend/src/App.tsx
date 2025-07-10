@@ -14,7 +14,9 @@ import useSTT from "@/hooks/useSTT";
 
 import { GroundingFile, ToolResult } from "./types";
 
-// import logo from "./assets/logo.svg";
+import logo from "./assets/glovebox.png";
+import activationTone from "./assets/activation_tone.mp3";
+import deactivationTone from "./assets/deactivation_tone.mp3";
 
 function App() {
     const [isRecording, setIsRecording] = useState(false);
@@ -24,6 +26,7 @@ function App() {
     const [selectedFile, setSelectedFile] = useState<GroundingFile | null>(null);
 
     const { startSession, addUserAudio, inputAudioBufferClear } = useRealTime({
+        enableInputAudioTranscription: true,
         onWebSocketOpen: () => console.log("WebSocket connection opened"),
         onWebSocketClose: () => console.log("WebSocket connection closed"),
         onWebSocketError: event => console.error("WebSocket error:", event),
@@ -43,10 +46,28 @@ function App() {
 
             setGroundingFiles(prev => [...prev, ...files]);
             setSelectedFile(files[0]);
+        },
+        onReceivedInputAudioBufferCleared: async () => {
+            // deactivation keyword management
+            // first, stop the audio player, so that you don't hear the audio when the conversation is stopped
+            stopAudioPlayer();
+            await stopAudioRecording();
+
+            // play the deactivation tone
+            playMp3File(deactivationTone);
+
+            // when stopping the conversation with the AI, start again the recognition of keyword
+            await startKeywordRecognition();
+            setIsActivationDetecting(true);
+            setIsRecording(false);
+            // clear the selected file. This is to avoid showing the content of the file when the user stops the conversation
+            setSelectedFile(null);
+            // clear the grounding files
+            setGroundingFiles([]);
         }
     });
 
-    const { reset: resetAudioPlayer, play: playAudio, stop: stopAudioPlayer } = useAudioPlayer();
+    const { reset: resetAudioPlayer, play: playAudio, stop: stopAudioPlayer, playMp3File: playMp3File } = useAudioPlayer();
     const { start: startAudioRecording, stop: stopAudioRecording } = useAudioRecorder({ onAudioRecorded: addUserAudio });
 
     const {
@@ -54,7 +75,7 @@ function App() {
         reset: resetKeywordRecognition,
         stop: stopKeywordRecognition
     } = useSTT({
-        // when the keyword is detected, we stop the keyword recognition and start the conversation with the AI
+        // when the activation keyword is detected, we stop the keyword recognition and start the conversation with the AI
         onKeywordDetected: () => {
             setIsActivationDetecting(false);
             onToggleListening();
@@ -73,17 +94,28 @@ function App() {
             await startAudioRecording();
             resetAudioPlayer();
 
-            // addUserText("Hey assistant");
             setIsRecording(true);
+
+            // play the activation tone
+            playMp3File(activationTone);
         } else {
-            await stopAudioRecording();
+            // stop the reproduction of the current AI audio sample
             stopAudioPlayer();
+
+            await stopAudioRecording();
+            // send the command to clear the audio buffer
             inputAudioBufferClear();
 
             // when stopping the conversation with the AI, start again the recognition of keyword
             await startKeywordRecognition();
             setIsActivationDetecting(true);
             setIsRecording(false);
+
+            // clear the selected file. This is to avoid showing the content of the file when the user stops the conversation
+            setSelectedFile(null);
+
+            // clear the grounding files
+            setGroundingFiles([]);
         }
     };
 
@@ -114,6 +146,7 @@ function App() {
                 </Button>
             </div>
             <main className="flex flex-grow flex-col items-center justify-center">
+                <img src={logo} alt="Logo" className="h-32 w-32 flex-col items-center justify-center" />
                 <h1 className="mb-8 bg-gradient-to-r from-blue-600 to-blue-600 bg-clip-text text-4xl font-bold text-transparent md:text-7xl">
                     {t("app.title")}
                 </h1>

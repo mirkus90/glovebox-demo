@@ -241,7 +241,7 @@ if __name__ == "__main__":
     AZURE_STORAGE_CONNECTION_STRING = os.environ["AZURE_STORAGE_CONNECTION_STRING"]
     AZURE_STORAGE_CONTAINER = os.environ["AZURE_STORAGE_CONTAINER"]
 
-    azure_credential = AzureDeveloperCliCredential(tenant_id=os.environ["AZURE_TENANT_ID"], process_timeout=60)
+    azure_credential = AzureDeveloperCliCredential(tenant_id=os.environ.get("AZURE_TENANT_ID"), process_timeout=60)
 
     setup_index(azure_credential,
         index_name=AZURE_SEARCH_INDEX, 
