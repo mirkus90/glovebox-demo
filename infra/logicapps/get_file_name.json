@@ -1,0 +1,117 @@
+{
+    "definition": {
+        "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+        "contentVersion": "1.0.0.0",
+        "triggers": {
+            "getFileName": {
+                "type": "Request",
+                "kind": "Http",
+                "inputs": {
+                    "method": "POST",
+                    "schema": {
+                        "type": "object",
+                        "properties": {
+                            "baseUrl": {
+                                "type": "string"
+                            },
+                            "text": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "actions": {
+            "Condition": {
+                "type": "If",
+                "expression": {
+                    "and": [
+                        {
+                            "greater": [
+                                "@length(body('Find_files_in_folder_by_path'))",
+                                0
+                            ]
+                        }
+                    ]
+                },
+                "actions": {
+                    "Get_first_element": {
+                        "type": "Compose",
+                        "inputs": "@body('Find_files_in_folder_by_path')?[0]?['name']"
+                    },
+                    "Response_OK": {
+                        "type": "Response",
+                        "kind": "Http",
+                        "inputs": {
+                            "statusCode": 200,
+                            "body": {
+                                "fileName": "@outputs('Get_first_element')"
+                            }
+                        },
+                        "runAfter": {
+                            "Get_first_element": [
+                                "Succeeded"
+                            ]
+                        }
+                    }
+                },
+                "else": {
+                    "actions": {
+                        "Response_KO": {
+                            "type": "Response",
+                            "kind": "Http",
+                            "inputs": {
+                                "statusCode": 404,
+                                "body": "File not found based on the provided text"
+                            }
+                        }
+                    }
+                },
+                "runAfter": {
+                    "Find_files_in_folder_by_path": [
+                        "Succeeded"
+                    ]
+                }
+            },
+            "Find_files_in_folder_by_path": {
+                "type": "ApiConnection",
+                "inputs": {
+                    "host": {
+                        "connection": {
+                            "name": "@parameters('$connections')['onedriveforbusiness']['connectionId']"
+                        }
+                    },
+                    "method": "get",
+                    "path": "/datasets/default/findFile",
+                    "queries": {
+                        "query": "@triggerBody()?['text']",
+                        "path": "@triggerBody()?['baseUrl']",
+                        "findMode": "OneDriveSearch",
+                        "maxFileCount": 1
+                    }
+                },
+                "runAfter": {}
+            }
+        },
+        "outputs": {},
+        "parameters": {
+            "$connections": {
+                "type": "Object",
+                "defaultValue": {}
+            }
+        }
+    },
+    "parameters": {
+        "$connections": {
+            "type": "Object",
+            "defaultValue": {
+                "onedriveforbusiness": {
+                    "id": "/subscriptions/<subscription-id>/providers/Microsoft.Web/locations/<location>/managedApis/onedriveforbusiness",
+                    "connectionId": "/subscriptions/<subscription-id>/resourceGroups/<resource-group>/providers/Microsoft.Web/connections/onedriveforbusiness",
+                    "connectionName": "onedriveforbusiness"
+                }
+            }
+        }
+    }
+}

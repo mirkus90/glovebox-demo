@@ -90,13 +90,19 @@
       "value": "${AZURE_CONTAINER_APP_NAME}"
     },
     "realtimeDeploymentCapacity": {
-      "value": "${AZURE_OPENAI_REALTIME_DEPLOYMENT_CAPACITY=1}"
+      "value": "${AZURE_OPENAI_REALTIME_DEPLOYMENT_CAPACITY=6}"
     },
     "realtimeDeploymentVersion": {
       "value": "${AZURE_OPENAI_REALTIME_DEPLOYMENT_VERSION=2024-12-17}"
     },
+    "transcriptionDeploymentVersion": {
+      "value": "${AZURE_OPENAI_TRANSCRIPTION_DEPLOYMENT_VERSION=2025-03-20}"
+    },
+    "transcriptionDeploymentCapacity": {
+      "value": "${AZURE_OPENAI_TRANSCRIPTION_DEPLOYMENT_CAPACITY=200}"
+    },
     "embeddingDeploymentCapacity": {
-      "value": "${AZURE_OPENAI_EMB_DEPLOYMENT_CAPACITY=30}"
+      "value": "${AZURE_OPENAI_EMB_DEPLOYMENT_CAPACITY=100}"
     },
     "embeddingDimensions": {
       "value": "${AZURE_OPENAI_EMB_DIMENSIONS}"
@@ -112,9 +118,17 @@
     },
     "webAppExists": {
       "value": "${SERVICE_WEB_RESOURCE_EXISTS=false}"
-    },
+    },    
     "azureContainerAppsWorkloadProfile": {
       "value": "${AZURE_CONTAINER_APPS_WORKLOAD_PROFILE=Consumption}"
+    },
+    "keywordDeactivation":{
+      "value": "${KEYWORD_DEACTIVATION=end session}"
+    },    "deployLogicApps": {
+      "value": "${DEPLOY_LOGIC_APPS=true}"
+    },
+    "notepadBaseUrl": {
+      "value": "${NOTEPAD_BASE_URL}"
     }
   }
 }
